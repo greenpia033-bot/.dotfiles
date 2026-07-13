@@ -122,5 +122,5 @@ fi
 #    . /usr/share/bash-completion/bash_completion
 #fi
 
-source ~/.local/share/blesh/ble.sh
+source ~/.local/share/blesh/ble.sh --attach=attach
 
