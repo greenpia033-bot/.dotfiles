@@ -1,0 +1,15 @@
+[wsl2]
+memory=10GB                # 为您16GB物理内存的约60%，兼顾WSL性能与Windows宿主系统流畅
+processors=6               # 分配6个逻辑核心给WSL（您CPU有16线程），确保并行编译效率
+swap=2GB                   # 设置2GB交换空间，为内核编译等内存密集型任务提供缓冲
+
+defaultVhdSize=50GB        # 将虚拟硬盘上限扩容至50GB，为后续安装留足空间
+# 除非正在排错，否则建议关闭调试控制台以保持简洁
+
+#localhostForwarding=true   # 确保Windows可通过localhost访问WSL内的服务
+
+[experimental]
+networkingMode=mirrored    # 关键：开启镜像网络，让WSL与Windows共享网络
+dnsTunneling=true          # 优化DNS解析，避免代理时DNS污染
+firewall=true              # 启用Windows防火墙对WSL的保护
+autoProxy=true             # 关键：自动将Windows的代理设置同步到WSL内部
