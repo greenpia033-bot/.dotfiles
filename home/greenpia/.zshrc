@@ -108,7 +108,22 @@ source $ZSH/oh-my-zsh.sh
 
 source /etc/profile
 
+# ---------- Docker 状态检测 ----------
+function check_docker() {
+    if command -v docker &> /dev/null && docker ps -q &> /dev/null; then
+        DOCKER_ICON="%F{cyan}%B🐳%b%f "
+    else
+        DOCKER_ICON=""
+    fi
+}
+
+# 每次显示提示符前执行检测
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd check_docker
+# ---------- Docker 状态检测结束 ----------
+
 # 强制恢复 ys 主题的提示符（覆盖 /etc/profile 的干扰）
-PROMPT='%F{cyan}%B[%n%F{white}@%f%F{magenta}%m%f]%b%f %F{yellow}%B[%D{%H:%M:%S}]%b%f %F{green}%B[%~]%b%f
+PROMPT='%F{cyan}%B[%n%F{white}@%f%F{magenta}%m%f]%b%f %F{yellow}%B[%D{%H:%M:%S}]%b%f %F{green}%B[%~]%b%f ${DOCKER_ICON}
 %F{green}%B%{%G%}➜%b%f '
+
 
