@@ -110,7 +110,7 @@ source /etc/profile
 
 # ---------- Docker 状态检测 ----------
 function check_docker() {
-    if command -v docker &> /dev/null && docker ps -q &> /dev/null; then
+    if command -v docker &> /dev/null && [[ -n "$(docker ps -q)" ]]; then
         DOCKER_ICON="%F{cyan}%B🐳%b%f "
     else
         DOCKER_ICON=""
@@ -126,4 +126,6 @@ add-zsh-hook precmd check_docker
 PROMPT='%F{cyan}%B[%n%F{white}@%f%F{magenta}%m%f]%b%f %F{yellow}%B[%D{%H:%M:%S}]%b%f %F{green}%B[%~]%b%f ${DOCKER_ICON}
 %F{green}%B%{%G%}➜%b%f '
 
+# ---------- Moon Bridge / Codex ----------
+alias mb="bash ~/src/moon-bridge/scripts/start_codex_with_moonbridge.sh --project-directory ."
 
