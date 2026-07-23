@@ -127,5 +127,39 @@ PROMPT='%F{cyan}%B[%n%F{white}@%f%F{magenta}%m%f]%b%f %F{yellow}%B[%D{%H:%M:%S}]
 %F{green}%B%{%G%}➜%b%f '
 
 # ---------- Moon Bridge / Codex ----------
-alias mb="bash ~/src/moon-bridge/scripts/start_codex_with_moonbridge.sh --project-directory ."
+mb() {
+    local project="${1:-$PWD}"
+    local root="/opt/moon-bridge"
+    local config="$root/config.yml"
 
+    # 后台启动 Moon Bridge
+    (
+        cd "$root"
+        exec ./moonbridge --config config.yml >/dev/null 2>&1
+    ) &
+    local server_pid=$!
+
+    # Ctrl+C 或 codex 退出时自动关闭 Moon Bridge
+    trap 'kill "$server_pid" 2>/dev/null' EXIT INT TERM
+
+    # 等待 Moon Bridge 启动（最多 10 秒）
+    for _ in {1..20}; do
+        if curl -fsS http://127.0.0.1:38440/v1/models >/dev/null 2>&1; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # 启动 Codex
+    codex \
+        --cd "$project" \
+        --sandbox workspace-write \
+        --ask-for-approval on-request
+
+    kill "$server_pid" 2>/dev/null
+    wait "$server_pid" 2>/dev/null
+    trap - EXIT INT TERM
+}
+
+# Added by codebase-memory-mcp install
+export PATH="/home/greenpia/.local/bin:$PATH"
