@@ -284,8 +284,6 @@ sudo usermod -aG docker $USER
 | `user_app/` | PID、电机/IMU/图像控制 |
 | `tools/` | 交叉编译工具链 + 依赖库(ffmpeg/opencv/ncnn) |
 
-**久久派 25 集教程** (UP主: 龙邱科技):
-
 **PID 控制全家**:
 
 | 类型 | 说明 |
