@@ -208,7 +208,8 @@ config push
 
 ```bash
 git clone --bare git@github.com:greenpia033-bot/.dotfiles.git ~/.config/.dotfiles
-git --git-dir=$HOME/.config/.dotfiles --work-tree=/ checkout
+//git --git-dir=$HOME/.config/.dotfiles --work-tree=/ checkout
+config checkout <一个文件> //单个文件单个文件迁移
 ```
 
 > work-tree 是 `/`，所以 `config add .` / `add *` / `clean -fdx` 会被硬拦截。
