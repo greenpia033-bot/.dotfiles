@@ -8,7 +8,6 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time Oh My Zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-
 ZSH_THEME="ys"
 
 # Set list of themes to pick from when loading at random
@@ -135,7 +134,7 @@ mb() {
     # 后台启动 Moon Bridge
     (
         cd "$root"
-        exec ./moonbridge --config config.yml >/dev/null 2>&1
+        exec ./cmd/moonbridge/moonbridge --config config.yml >/dev/null 2>&1
     ) &
     local server_pid=$!
 

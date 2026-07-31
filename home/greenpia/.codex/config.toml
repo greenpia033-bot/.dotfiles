@@ -1,0 +1,68 @@
+model = "deepseek-v4-pro"
+model_provider = "moonbridge"
+model_context_window = 1000000
+model_max_output_tokens = 384000
+model_catalog_json = "/home/greenpia/.codex/models_catalog.json"
+model_reasoning_effort = "max"
+
+[model_providers.moonbridge]
+name = "Moon Bridge"
+base_url = "http://127.0.0.1:38440/v1"
+wire_api = "responses"
+
+[mcp_servers.deepwiki]
+url = "https://mcp.deepwiki.com/mcp"
+startup_timeout_sec = 3600.0
+tool_timeout_sec = 3600.0
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp", "--executable-path", "/usr/bin/google-chrome-stable"]
+
+[mcp_servers.sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+
+[mcp_servers.chrome]
+command = "sh"
+args = [
+    "-c",
+    "WSL_IP=$(cat /etc/resolv.conf | grep -m 1 nameserver | awk '{print $2}') && CHROME_DEBUG_WS_URL=ws://$WSL_IP:9222 npx -y chrome-devtools-mcp@latest"
+]
+
+[mcp_servers.docker]
+command = "npx"
+args = ["-y", "docker-mcp"]
+
+[mcp_servers.codebase-memory-mcp]
+command = "/home/greenpia/.local/bin/codebase-memory-mcp"
+
+# >>> codebase-memory-mcp SessionStart >>>
+[[hooks.SessionStart]]
+matcher = "startup|resume|clear|compact"
+
+[projects."/home/greenpia/WORKS"]
+trust_level = "trusted"
+
+[projects."/home/greenpia/WORKS/Smart-Car"]
+trust_level = "trusted"
+
+[projects."/home/greenpia"]
+trust_level = "trusted"
+
+[features]
+memories = true
+network_proxy = true
+
+#[[hooks.SessionStart.hooks]]
+#type = "command"
+#command = 'echo "Code discovery: prefer codebase-memory-mcp (search_graph, trace_path, get_code_snippet, query_graph, search_code) over grep/file-read; run index_repository first if the project is not indexed."'
+# <<< codebase-memory-mcp SessionStart <<<
