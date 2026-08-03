@@ -1,9 +1,11 @@
-model = "deepseek-v4-pro"
+model = "deepseek-v4-flash"
 model_provider = "moonbridge"
 model_context_window = 1000000
 model_max_output_tokens = 384000
 model_catalog_json = "/home/greenpia/.codex/models_catalog.json"
-model_reasoning_effort = "max"
+model_reasoning_effort = "xhigh"
+approvals_reviewer = "user"
+plan_mode_reasoning_effort = "xhigh"
 
 [model_providers.moonbridge]
 name = "Moon Bridge"
@@ -12,8 +14,8 @@ wire_api = "responses"
 
 [mcp_servers.deepwiki]
 url = "https://mcp.deepwiki.com/mcp"
-startup_timeout_sec = 3600.0
-tool_timeout_sec = 3600.0
+startup_timeout_sec = 120.0
+tool_timeout_sec = 600.0
 
 [mcp_servers.context7]
 command = "npx"
@@ -25,7 +27,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/"]
 
 [mcp_servers.playwright]
 command = "npx"
-args = ["-y", "@playwright/mcp", "--executable-path", "/usr/bin/google-chrome-stable"]
+args = ["-y", "@playwright/mcp"]
 
 [mcp_servers.sequential-thinking]
 command = "npx"
@@ -49,20 +51,9 @@ command = "/home/greenpia/.local/bin/codebase-memory-mcp"
 [[hooks.SessionStart]]
 matcher = "startup|resume|clear|compact"
 
-[projects."/home/greenpia/WORKS"]
-trust_level = "trusted"
-
-[projects."/home/greenpia/WORKS/Smart-Car"]
-trust_level = "trusted"
-
-[projects."/home/greenpia"]
-trust_level = "trusted"
-
 [features]
 memories = true
 network_proxy = true
 
-#[[hooks.SessionStart.hooks]]
-#type = "command"
-#command = 'echo "Code discovery: prefer codebase-memory-mcp (search_graph, trace_path, get_code_snippet, query_graph, search_code) over grep/file-read; run index_repository first if the project is not indexed."'
-# <<< codebase-memory-mcp SessionStart <<<
+[projects."/home/greenpia/WORKS"]
+trust_level = "trusted"

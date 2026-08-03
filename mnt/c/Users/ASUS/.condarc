@@ -1,0 +1,19 @@
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r/
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2/
+#  - https://mirrors.aliyun.com/anaconda/pkgs/main
+#  - https://mirrors.aliyun.com/anaconda/pkgs/r
+#  - https://mirrors.aliyun.com/anaconda/pkgs/msys2
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/
+  - defaults
+show_channel_urls: true
+channel_priority: strict
+auto_activate: false
+pkgs_dirs:
+  - D:\anaconda3\pkgs
+envs_dirs:
+  - D:\anaconda3\envs
+
+
+

@@ -11,4 +11,6 @@ firewall=true              # 启用Windows防火墙对WSL的保护
 autoProxy=true             # 关键：自动将Windows的代理设置同步到WSL内部
 hostAddressLoopback=true
 bestEffortDnsParsing=true
-sparseVhd=false
+sparseVhd=true
+autoMemoryReclaim=gradual
+

@@ -129,12 +129,14 @@ PROMPT='%F{cyan}%B[%n%F{white}@%f%F{magenta}%m%f]%b%f %F{yellow}%B[%D{%H:%M:%S}]
 mb() {
     local project="${1:-$PWD}"
     local root="/opt/moon-bridge"
-    local config="$root/config.yml"
+    #local config="$root/config.yml"
 
     # 后台启动 Moon Bridge
     (
         cd "$root"
-        exec ./cmd/moonbridge/moonbridge --config config.yml >/dev/null 2>&1
+        exec ./cmd/moonbridge/moonbridge --config config.yml \
+		    1>/dev/null \
+			2>>$root/logs/error.log
     ) &
     local server_pid=$!
 
