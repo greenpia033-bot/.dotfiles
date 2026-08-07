@@ -127,48 +127,68 @@ PROMPT='%F{cyan}%B[%n%F{white}@%f%F{magenta}%m%f]%b%f %F{yellow}%B[%D{%H:%M:%S}]
 
 # ---------- Moon Bridge / Codex ----------
 mb() {
+    
     local project="${1:-$PWD}"
     local root="/opt/moon-bridge"
-    #local config="$root/config.yml"
     local secrets="$HOME/.config/.env.yaml"
-
     local env_config=$(mktemp)
 
-    yq eval "
-            .providers.deepseek.api_key = load(\"$secrets\").DEEPSEEK_API_KEY  |  
-            .providers.kimi.api_key = load(\"$secrets\").SILICONFLOW_API_KEY  
-        " "$root/config.yml" > "$env_config"  #需要确认"$root/config.yml"中providers后的模型名
+    local today=$(date +%F)
+    local log_dir="$root/logs/error/${today:0:4}/${today:5:2}"
+    local log_file="$log_dir/$today.log"
 
-    # 后台启动 Moon Bridge
+    mkdir -p "$log_dir"
+
+    cleanup() {
+        (
+            echo
+            echo "========== $(date '+%F %T') Moon Bridge session stopped =========="
+        ) >> "$log_file"
+        if [[ -n "$server_pid" ]]; then
+            kill "$server_pid" 2>/dev/null
+            wait "$server_pid" 2>/dev/null
+        fi
+        if [[ -f "$env_config" ]]; then
+            rm -f "$env_config"
+        fi
+    }
+    trap cleanup EXIT INT TERM  #SIGINT SIGTERM EXIT(伪信号，在脚本退出时触发)
+
+    yq eval --arg secret "$secrets" '
+        .providers.deepseek.api_key = load($secret).DEEPSEEK_API_KEY |
+        .providers.kimi.api_key = load($secret).SILICONFLOW_API_KEY
+        ' "$root/config.yml" > "$env_config"  #需要确认"$root/config.yml"中providers后的模型名
     (
-        cd "$root"
+        echo
+        echo "========== $(date '+%F %T') Moon Bridge session start =========="
+    ) >> "$log_file"
+
+    # 启动 Moon Bridge
+    (
+        cd "$root" || exit 1
         exec ./cmd/moonbridge/moonbridge --config "$env_config" \
-		    1>/dev/null \
-			2>>$root/logs/error.log
+            1>/dev/null \
+            2>>"$log_file"
     ) &
     local server_pid=$!
-
-    # Ctrl+C 或 codex 退出时自动关闭 Moon Bridge
-    trap 'kill "$server_pid" 2>/dev/null' EXIT INT TERM
-
-    # 等待 Moon Bridge 启动（最多 10 秒）
+    
+    # 等待 Moon Bridge
+    local ready=false
     for _ in {1..20}; do
         if curl -fsS http://127.0.0.1:38440/v1/models >/dev/null 2>&1; then
+            ready=true
             break
         fi
         sleep 0.5
     done
-
+    if [[ "$ready" != true ]]; then
+        return 1
+    fi
     # 启动 Codex
     codex \
         --cd "$project" \
         --sandbox workspace-write \
         --ask-for-approval on-request
-
-    kill "$server_pid" 2>/dev/null
-    wait "$server_pid" 2>/dev/null
-    rm -f "$env_config"
-    trap - EXIT INT TERM
 }
 
 # Added by codebase-memory-mcp install

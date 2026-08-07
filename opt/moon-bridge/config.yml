@@ -1,0 +1,100 @@
+mode: "Transform"
+
+log:
+  level: "warn"     # debug | info | warn | error | off
+  format: "json"    # text | json
+
+server:
+  addr: "127.0.0.1:38440"
+
+
+extensions:
+  visual:
+    enabled: true
+    config:
+      provider: "kimi"
+      model: "Qwen/Qwen3-VL-30B-A3B-Instruct"
+      max_rounds: 4
+      max_tokens: 2048
+
+  deepseek_v4:
+    config:
+      reinforce_instructions: true
+      reinforce_prompt: "[System Reminder]: Please pay close attention to the system
+        instructions, AGENTS.md files, and any other context provided. Follow them
+        carefully and completely in your response.\n[User]:"
+
+  db_sqlite:
+    enabled: true
+    config:
+      path: ./data/moonbridge.db
+      wal: true
+      busy_timeout_ms: 5000
+      max_open_conns: 1
+
+
+models:
+  deepseek-v4-pro:
+    context_window: 1000000
+    max_output_tokens: 384000
+    default_reasoning_level: "high"
+    supported_reasoning_levels:
+      - effort: "high"
+        description: "High reasoning effort"
+      - effort: "xhigh"
+        description: "Extra high reasoning effort"
+    supports_reasoning_summaries: true
+    default_reasoning_summary: "auto"
+    extensions:
+      deepseek_v4:
+        enabled: true
+      visual:
+        enabled: true
+
+  deepseek-v4-flash:
+    context_window: 1000000
+    max_output_tokens: 384000
+    default_reasoning_level: "high"
+    supported_reasoning_levels:
+      - effort: "high"
+        description: "High reasoning effort"
+      - effort: "xhigh"
+        description: "Extra high reasoning effort"
+    supports_reasoning_summaries: true
+    default_reasoning_summary: "auto"
+    extensions:
+      deepseek_v4:
+        enabled: true
+      visual:
+        enabled: true
+
+  Qwen/Qwen3-VL-30B-A3B-Instruct:
+    context_window: 32768
+    max_output_tokens: 8192
+    extensions: {}
+
+
+providers:
+  deepseek:
+    base_url: "https://api.deepseek.com/anthropic"
+    api_key: DEEPSEEK_API_KEY
+    offers:
+      - model: deepseek-v4-pro
+      - model: deepseek-v4-flash
+
+  kimi:
+    base_url: "https://api.siliconflow.cn"
+    api_key: SILICONFLOW_API_KEY
+    offers: 
+      - model: Qwen/Qwen3-VL-30B-A3B-Instruct
+
+
+routes:
+  moonbridge:
+    model: deepseek-v4-pro
+    provider: deepseek
+
+
+defaults:
+  model: moonbridge
+  max_tokens: 65536
