@@ -137,13 +137,11 @@ mb() {
     local log_dir="$root/logs/error/${today:0:4}/${today:5:2}"
     local log_file="$log_dir/$today.log"
 
+    local server_pid=""
+
     mkdir -p "$log_dir"
 
     cleanup() {
-        (
-            echo
-            echo "========== $(date '+%F %T') Moon Bridge session stopped =========="
-        ) >> "$log_file"
         if [[ -n "$server_pid" ]]; then
             kill "$server_pid" 2>/dev/null
             wait "$server_pid" 2>/dev/null
@@ -153,24 +151,28 @@ mb() {
         fi
     }
     trap cleanup EXIT INT TERM  #SIGINT SIGTERM EXIT(伪信号，在脚本退出时触发)
+    #trap cleanup EXIT
+    #trap 'exit 130' INT
+    #trap 'exit 143' TERM
 
-    yq eval --arg secret "$secrets" '
-        .providers.deepseek.api_key = load($secret).DEEPSEEK_API_KEY |
-        .providers.kimi.api_key = load($secret).SILICONFLOW_API_KEY
-        ' "$root/config.yml" > "$env_config"  #需要确认"$root/config.yml"中providers后的模型名
-    (
+    yq eval "
+        .providers.deepseek.api_key = load(\"$secrets\").DEEPSEEK_API_KEY |
+        .providers.kimi.api_key = load(\"$secrets\").SILICONFLOW_API_KEY
+    " "$root/config.yml" > "$env_config"
+    
+    {
         echo
         echo "========== $(date '+%F %T') Moon Bridge session start =========="
-    ) >> "$log_file"
+    } >> "$log_file"
 
-    # 启动 Moon Bridge
+    # subshell后台启动 Moon Bridge
     (
         cd "$root" || exit 1
         exec ./cmd/moonbridge/moonbridge --config "$env_config" \
             1>/dev/null \
             2>>"$log_file"
     ) &
-    local server_pid=$!
+    server_pid=$!
     
     # 等待 Moon Bridge
     local ready=false

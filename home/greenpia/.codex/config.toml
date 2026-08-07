@@ -4,7 +4,7 @@ model_context_window = 1000000
 model_max_output_tokens = 384000
 model_catalog_json = "/home/greenpia/.codex/models_catalog.json"
 model_reasoning_effort = "xhigh"
-approvals_reviewer = "user"
+approvals_reviewer = "auto_review"
 plan_mode_reasoning_effort = "xhigh"
 
 [model_providers.moonbridge]
@@ -56,4 +56,16 @@ memories = true
 network_proxy = true
 
 [projects."/home/greenpia/WORKS"]
+trust_level = "trusted"
+
+[projects."/mnt/c/Users/ASUS/Pictures"]
+trust_level = "trusted"
+
+[projects."/mnt/c/Users/ASUS/Documents"]
+trust_level = "trusted"
+
+[projects."/home/greenpia/WORKS/research-sessions"]
+trust_level = "trusted"
+
+[projects."/home/greenpia"]
 trust_level = "trusted"
