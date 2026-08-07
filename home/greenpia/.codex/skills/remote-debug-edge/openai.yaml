@@ -1,0 +1,11 @@
+interface:
+  display_name: "Edge Remote Debug"
+  short_description: "Remote debug Edge via CDP from WSL2"
+  default_prompt: |
+    Control the user's Edge browser via CDP bridge.
+    Edge should already be running with remote debugging enabled.
+    Start CDP bridge: node scripts/cdp-bridge.js (use PTY session, NOT just &).
+    IMPORTANT: All network calls to localhost:9222/9223 require sandbox escalation.
+    Use scripts/cdp.js for common operations (list, attach, eval, nav, capture).
+    For Chinese sites (CNKI, Baidu Scholar, Wanfang): expect CAPTCHA. Check title for "安全验证", pause and notify user.
+    For research: Wanfang is best for journal metadata (vol/issue/page). CNKI requires CAPTCHA each navigation.

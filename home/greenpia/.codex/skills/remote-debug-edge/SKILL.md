@@ -7,156 +7,105 @@ description: Remote debug Microsoft Edge browser via CDP from WSL2. Use when Cod
 
 Remotely control the user's Microsoft Edge browser from WSL2 via Chrome DevTools Protocol (CDP).
 
-## Prerequisites
+## Quick Start
 
-**Windows side** -- user must start Edge with remote debugging:
+1. **Windows side** - Open `edge://inspect/#remote-debugging`, enable "Allow remote debugging"
+2. **WSL side** - Start bridge: `node scripts/cdp-bridge.js` (keep running — see session notes below)
+3. **Use** - `node scripts/cdp.js attach <url-filter>` → `eval`, `nav`, `capture`, `open`
 
+## Windows Side: Enable Debugging
+
+**Option A (Recommended):** Open `edge://inspect/#remote-debugging`, check "Allow remote debugging for this browser instance". Server runs at `127.0.0.1:9222`.
+
+**Option B (NAT mode, need 0.0.0.0):**
 ```powershell
-taskkill /f /im msedge.exe 2>$null
-& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" `
-  --remote-debugging-port=9222 `
-  --remote-debugging-address=0.0.0.0 `
-  --user-data-dir="D:\edge-debug"
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --user-data-dir="D:\edge-debug"
 ```
 
-WSL2 mirrored-mode auto-maps `localhost:9222` from WSL2 to the Windows Edge CDP endpoint. No additional networking config needed.
-
-**WSL2 side** -- user must start the CDP bridge (once per session):
+## WSL Side: Start CDP Bridge
 
 ```bash
-node ~/WORKS/remote-debug-edge/scripts/cdp-bridge.js &
+node scripts/cdp-bridge.js   # keep this running!
 ```
+Creates HTTP relay at `127.0.0.1:9223`, forwarding to Edge CDP. Requires `ws` (`apt install node-ws`).
 
-Requires `ws` system module (`apt install node-ws`). The bridge creates an HTTP relay on `127.0.0.1:9223` that Codex MCP browser tools can reach, forwarding CDP commands to Edge's WebSocket.
+**CRITICAL: Sandbox Trap!** Codex sandbox uses `--unshare-net`. Any curl to `localhost:9222`/`localhost:9223` inside sandbox **always fails** with "Could not connect". **Always use `sandbox_permissions: "require_escalated"`** for CDP calls. Test with: `curl -sS localhost:9223/health` (escalated).
 
-## Architecture
+**Bridge lifecycle:** Using `&` or `nohup` inside escalated exec → process dies when session ends. Use a **PTY session** (tty=true) to keep it alive. Stop with `write_stdin(session_id, "\\x03")`.
 
-```
-Codex MCP browser  --HTTP-->  :9223 bridge  --WS-->  Edge :9222 CDP
-(playwright/chrome)          (Node.js relay)          (Windows host)
-```
-
-The MCP browser tools (`browser_evaluate`, `browser_run_code_unsafe`) can send HTTP requests to `localhost:9223`. The bridge relays POST `/cdp` to Edge CDP and returns responses. GET requests are forwarded to Edge's HTTP API (`/json`, `/json/version`, etc.).
-
-## Core CDP Flow
-
-### 1. List open pages
+## Core CDP via curl
 
 ```
-GET http://localhost:9223/json
+GET  /json                    → list pages
+POST /cdp {"method":"Target.attachToTarget","params":{"targetId":"<ID>","flatten":true}}
+     /cdp {"method":"Runtime.evaluate","params":{"expression":"...","returnByValue":true},"sessionId":"<SID>"}
+     /cdp {"method":"Target.createTarget","params":{"url":"about:blank"}}
 ```
 
-Returns array of page objects with `id`, `url`, `title`, `webSocketDebuggerUrl`.
+Python inline helper (escalated):
 
-### 2. Attach to a page
-
-Send via POST `/cdp`:
-```json
-{"method": "Target.attachToTarget", "params": {"targetId": "<PAGE_ID>", "flatten": true}}
-```
-Returns `{"result": {"sessionId": "<SID>"}}`.
-
-### 3. Run JavaScript on the page
-
-```json
-{"method": "Runtime.evaluate", "params": {"expression": "document.title", "returnByValue": true}, "sessionId": "<SID>"}
+```python
+def cdp(method, params=None, session_id=None):
+    body = {"method": method, "params": params or {}}
+    if session_id: body["sessionId"] = session_id
+    req = Request("http://localhost:9223/cdp", data=json.dumps(body).encode(), headers={"Content-Type":"application/json"})
+    return json.load(urlopen(req, timeout=30))
 ```
 
-### 4. Detach
+## cdp.js CLI
 
-```json
-{"method": "Target.detachFromTarget", "params": {}, "sessionId": "<SID>"}
-```
-
-## Extracting Page Content
-
-Use `scripts/extract.js` for common extraction tasks, or implement inline via MCP tools.
-
-### Quick extraction via script
+`scripts/cdp.js` wraps common ops:
 
 ```bash
-# Extract from a page matching URL substring, with virtual scroll handling
-node scripts/extract.js deepseek --scroll
-node scripts/extract.js chatgpt --scroll
-node scripts/extract.js bing
+node cdp.js list                    # list pages
+node cdp.js attach <url-filter>     # attach
+node cdp.js eval "document.title"   # evaluate JS
+node cdp.js nav <url>               # navigate
+node cdp.js capture [filter] [--scroll]  # extract text
+node cdp.js open <url>              # new tab
+node cdp.js health                  # check bridge
 ```
 
-### Inline extraction via MCP browser
+## CAPTCHA / Chinese Sites
 
-When extracting from MCP tools, send CDP commands via `fetch` to `http://localhost:9223/cdp` from within `browser_evaluate`:
+CNKI, Baidu Scholar, etc. **trigger CAPTCHA on automated navigation**. Workflow:
 
-```js
-// Attach
-const r = await fetch('http://localhost:9223/cdp', {
-  method: 'POST', headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({method: 'Target.attachToTarget', params: {targetId: pageId, flatten: true}})
-});
-const {result: {sessionId}} = await r.json();
+1. Navigate → wait 3-5s → check `document.title` or page text
+2. If text contains "安全验证" / "百度安全验证" / "拼图验证": tell user to complete verification in Edge window, wait 15-30s, re-check
+3. Continue extraction after verification passes
 
-// Evaluate
-const r2 = await fetch('http://localhost:9223/cdp', {
-  method: 'POST', headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({method: 'Runtime.evaluate', params: {expression: 'document.body.innerText', returnByValue: true}, sessionId})
-});
-const text = (await r2.json()).result?.result?.value;
-```
+**Site tips:**
+- CNKI: too-specific terms → "暂无数据". Use broader keywords ("电动汽车 充电 配电网" not "老旧小区 充电桩 变压器")
+- Wanfang: best for journal vol/issue/page metadata, less aggressive CAPTCHA
+- Baidu Scholar: moderate CAPTCHA, good for quick metadata
+- `extract.js` auto-detects CAPTCHA (`--all` mode)
 
-## Handling Virtual Scrolling (SPAs)
+## Page Extraction
 
-Single-page apps (DeepSeek, ChatGPT, etc.) use virtual scrolling: DOM nodes outside the viewport are recycled. Only visible messages exist in the DOM at any time.
-
-**Fix**: Scroll the chat container to top before extraction, repeating several times to force all messages to render:
-
-```js
-for (let i = 0; i < 8; i++) {
-  await cdp('Runtime.evaluate', {
-    expression: `(function(){
-      const els = document.querySelectorAll('div');
-      for (const el of els) {
-        if (el.scrollHeight > el.clientHeight + 200) { el.scrollTop = 0; }
-      }
-    })()`,
-    returnByValue: true
-  }, sessionId);
-  await new Promise(r => setTimeout(r, 600));
-}
-```
-
-After scrolling, re-extract the page content -- all messages should now be in the DOM.
-
-## AI Chat Extraction Strategy
-
-For AI chat pages (DeepSeek, ChatGPT, Claude, Doubao), the chat messages are in the main content area. To find them:
-
-1. Attach to the page via CDP
-2. If the page shows only sidebar (conversation list), click a conversation to load it:
-   ```js
-   const divs = document.querySelectorAll('div');
-   for (const d of divs) {
-     if (d.innerText?.trim() === 'CONVERSATION_TITLE' && !d.querySelector('*')) {
-       d.parentElement?.click(); break;
-     }
-   }
-   ```
-3. Handle virtual scrolling (see above)
-4. Extract the largest text container containing AI markers
-
-Common AI markers to search for: `内容由 AI 生成`, `深度思考`, `复制代码`, `Copy code`, `ChatGPT`, `Claude`, `Regenerate`.
-
-## Non-AI Page Extraction
-
-For regular web pages (forums, search results, documentation):
-
+- **AI chats**: `node extract.js deepseek --scroll` (handles virtual scrolling for SPA)
+- **Research pages**: `node extract.js baidu --all` (full text + CAPTCHA detection)
+- **Structured extraction**: Use Python CDP helper via escalated curl (see Core CDP section)
+- **Sites**: Forums: site-specific selectors; Documentation: `<main>`/`<article>`; Search: `#b_results li.b_algo` (Bing)
 - **Search results**: Target `#b_results li.b_algo` (Bing) or `#search .g` (Google)
-- **Forums**: Target topic titles and post content using site-specific selectors
-- **Documentation**: Extract from `<main>`, `<article>`, or the largest text block
-
-Use `document.querySelector` or `document.querySelectorAll` with site-specific CSS selectors for structured extraction.
+- **Forums/bbs**: Target topic titles and post content using site-specific CSS selectors
 
 ## Troubleshooting
 
-- **Bridge not reachable**: Check `curl http://localhost:9223/health` returns `OK`. If not, restart the bridge.
-- **Edge CDP not reachable**: Confirm Edge is running with `--remote-debugging-port=9222`. Check `curl http://localhost:9222/json/version`.
-- **WebSocket 403 from MCP browser**: Normal -- browser-to-browser WebSocket connections are blocked. Always go through the bridge.
-- **Empty extraction from SPA**: Page uses virtual scrolling. Use `--scroll` flag or the scroll-top loop before extracting.
-- **Session detached**: Page navigation or tab switch may detach the CDP session. Re-attach before subsequent operations.
+| Problem | Likely cause | Fix |
+|---|---|---|
+| curl "Failed to connect" | Inside sandbox | Use `require_escalated` |
+| Bridge unreachable | Died with `&` | Use PTY session (tty=true) |
+| Edge CDP not reachable | Debugging not enabled | Check `edge://inspect`, verify with `curl localhost:9222/json/version` (escalated) |
+| SPA returns empty | Virtual scroll | `--scroll` flag, or 6-8x scroll-top loop |
+| CNKI "暂无数据" | Search terms too specific | Use broader terms |
+| CNKI/Baidu stuck | CAPTCHA | Check title, notify user to verify |
+| Session detached | Page navigated | Re-attach |
+| MCP browser fails | No WebSocket to bridge | Use direct escaled curl instead |
+
+## Common Mistakes (TL;DR)
+
+1. **Testing in sandbox** → curl always fails. Always escalate.
+2. **Bridge with `&`** → dies with session. Use PTY session (tty=true).
+3. **No CAPTCHA detection** → hangs on CNKI/Baidu. Check page title for "安全验证".
+4. **Too-specific CNKI terms** → zero results. Go broader.
+5. **Edge debug not enabled** → 9222 unreachable. Always verify with escalated curl first.

@@ -41,7 +41,7 @@ ZSH_THEME="ys"
 # DISABLE_AUTO_TITLE="true"
 
 # Uncomment the following line to enable command auto-correction.
-# ENABLE_CORRECTION="true"
+ENABLE_CORRECTION="true"
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 # You can also set it to another string to have that shown instead of the default red dots.
@@ -130,11 +130,19 @@ mb() {
     local project="${1:-$PWD}"
     local root="/opt/moon-bridge"
     #local config="$root/config.yml"
+    local secrets="$HOME/.config/.env.yaml"
+
+    local env_config=$(mktemp)
+
+    yq eval "
+            .providers.deepseek.api_key = load(\"$secrets\").DEEPSEEK_API_KEY  |  
+            .providers.kimi.api_key = load(\"$secrets\").SILICONFLOW_API_KEY  
+        " "$root/config.yml" > "$env_config"  #需要确认"$root/config.yml"中providers后的模型名
 
     # 后台启动 Moon Bridge
     (
         cd "$root"
-        exec ./cmd/moonbridge/moonbridge --config config.yml \
+        exec ./cmd/moonbridge/moonbridge --config "$env_config" \
 		    1>/dev/null \
 			2>>$root/logs/error.log
     ) &
@@ -159,8 +167,13 @@ mb() {
 
     kill "$server_pid" 2>/dev/null
     wait "$server_pid" 2>/dev/null
+    rm -f "$env_config"
     trap - EXIT INT TERM
 }
 
 # Added by codebase-memory-mcp install
 export PATH="/home/greenpia/.local/bin:$PATH"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
